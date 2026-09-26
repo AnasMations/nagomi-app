@@ -37,5 +37,11 @@
     "vite": "^8.2.2",
     "vitest": "^5.0.2",
     "wrangler": "4.131.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   }
 }
