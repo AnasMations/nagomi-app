@@ -7,6 +7,7 @@ import {
   LOTUS,
   LOTUS_FLOWERS,
   LOTUS_LEAVES,
+  viewportPoint,
 } from "./config";
 import {
   SurfaceGeometryBatch,
@@ -137,7 +138,7 @@ export class ButterflyPass {
     this.refreshConfig();
   }
 
-  public refreshConfig(): void {
+  public refreshConfig(preserveMovement = false): void {
     this.shadowMaterial.color.setHex(BUTTERFLIES.shadow.color);
     this.shadowMaterial.opacity = BUTTERFLIES.shadow.opacity;
     SHADOW_COLOR.setHex(BUTTERFLIES.shadow.color);
@@ -149,20 +150,38 @@ export class ButterflyPass {
       target.accent.setHex(palette.accent);
       target.body.setHex(palette.body);
     }
+    const previous = this.butterflies;
     this.butterflies = this.createButterflies();
-    this.lastTime = -1;
+    if (preserveMovement) {
+      for (const [index, butterfly] of this.butterflies.entries()) {
+        const old = previous[index];
+        if (old) Object.assign(butterfly, old);
+      }
+    } else {
+      this.lastTime = -1;
+    }
+  }
+
+  public resize(scaleX: number, scaleY: number): void {
+    for (const butterfly of this.butterflies) {
+      butterfly.position.x *= scaleX;
+      butterfly.position.y *= scaleY;
+      butterfly.wanderTarget.x *= scaleX;
+      butterfly.wanderTarget.y *= scaleY;
+    }
   }
 
   private createButterflies(): Butterfly[] {
     return BUTTERFLY_SPAWNS.map((spawn, index) => {
       const randomState = (0x9e3779b9 ^ ((index + 1) * 0x85ebca6b)) >>> 0;
+      const placement = viewportPoint(spawn.x, spawn.y);
       const butterfly: Butterfly = {
-        position: { x: spawn.x, y: spawn.y },
+        position: { ...placement },
         velocity: {
           x: Math.cos(spawn.phase) * BUTTERFLIES.minimumSpeed,
           y: Math.sin(spawn.phase) * BUTTERFLIES.minimumSpeed,
         },
-        wanderTarget: { x: spawn.x, y: spawn.y },
+        wanderTarget: { ...placement },
         restOffset: { x: 0, y: 0 },
         state: "wander",
         stateAge: 0,
@@ -462,13 +481,14 @@ export class ButterflyPass {
     const flower = flowers[Math.min(flowerIndex, flowers.length - 1)];
     if (!flower) return { x: CANVAS_WIDTH * 0.5, y: CANVAS_HEIGHT * 0.5 };
     const leaf = LOTUS_LEAVES[flower.leafIndex];
+    const placement = viewportPoint(leaf.x, leaf.y);
     return {
       x:
-        leaf.x +
+        placement.x +
         Math.sin(time * 0.12 + leaf.phase) * LOTUS.driftX +
         flower.offsetX,
       y:
-        leaf.y +
+        placement.y +
         Math.cos(time * 0.15 + leaf.phase * 1.3) * LOTUS.driftY +
         flower.offsetY,
     };

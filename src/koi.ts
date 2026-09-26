@@ -41,7 +41,6 @@ export class Koi {
   public inDeepPeriod = false;
   public gulpCountdown = 8;
   public gulpAnimation = 0;
-  public lastWakePhase = 0;
   public behaviorRng = 1;
   public state = SwimState.Glide;
 
@@ -62,7 +61,6 @@ export class Koi {
     this.bodyWidth = this.bodyLength * random.range(widthRange[0], widthRange[1]);
     this.phaseOffset = random.range(0, TAU);
     this.swimPhase = this.phaseOffset;
-    this.lastWakePhase = Math.floor(this.swimPhase / Math.PI);
     this.wanderSeed = random.range(0, 100);
     this.reactivity = random.range(0.35, 1);
     this.callDelay = 0;

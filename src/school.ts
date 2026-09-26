@@ -2,7 +2,6 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   FISH,
-  INITIAL_FISH,
   MAX_FISH,
   SPINE_NODES,
 } from "./config";
@@ -24,15 +23,13 @@ import {
   XorShift32,
 } from "./math";
 import { RippleSystem } from "./ripple-system";
-import { WakeSystem } from "./wake-system";
 
 export class School {
   public readonly fish: Koi[] = Array.from({ length: MAX_FISH }, () => new Koi());
   public readonly ripples = new RippleSystem();
-  public readonly wakes = new WakeSystem();
   public readonly tinyFish = new TinyFishSchools();
 
-  public count: number = INITIAL_FISH;
+  public count: number = FISH.initialCount;
   public targetActive = false;
 
   private random = new XorShift32();
@@ -47,9 +44,54 @@ export class School {
     this.count = clamp(Math.round(count), 1, MAX_FISH);
   }
 
-  public refreshConfig(): void {
-    this.count = clamp(Math.round(FISH.initialCount), 1, MAX_FISH);
-    this.reset();
+  public updateBodyProportions(previous: {
+    regularLength: readonly [number, number];
+    tinyLength: readonly [number, number];
+    regularWidthRatio: readonly [number, number];
+    tinyWidthRatio: readonly [number, number];
+    tinyEvery: number;
+  }): void {
+    const midpoint = (range: readonly [number, number]): number =>
+      (range[0] + range[1]) * 0.5;
+    for (const [index, fish] of this.fish.entries()) {
+      const wasTiny = index % previous.tinyEvery === previous.tinyEvery - 1;
+      const isTiny = index % FISH.tinyEvery === FISH.tinyEvery - 1;
+      const oldLength = midpoint(wasTiny ? previous.tinyLength : previous.regularLength);
+      const newLength = midpoint(isTiny ? FISH.tinyLength : FISH.regularLength);
+      const oldWidth = midpoint(
+        wasTiny ? previous.tinyWidthRatio : previous.regularWidthRatio,
+      );
+      const newWidth = midpoint(isTiny ? FISH.tinyWidthRatio : FISH.regularWidthRatio);
+      const lengthRatio = newLength / Math.max(oldLength, 0.001);
+      fish.bodyLength *= lengthRatio;
+      fish.bodyWidth *= lengthRatio * newWidth / Math.max(oldWidth, 0.001);
+    }
+  }
+
+  public resize(scaleX: number, scaleY: number): void {
+    for (const fish of this.fish) {
+      const nextX = fish.position.x * scaleX;
+      const nextY = fish.position.y * scaleY;
+      const shiftX = nextX - fish.position.x;
+      const shiftY = nextY - fish.position.y;
+      fish.position.x = nextX;
+      fish.position.y = nextY;
+      for (const node of fish.spine) {
+        node.x += shiftX;
+        node.y += shiftY;
+      }
+      for (const node of fish.renderSpine) {
+        node.x += shiftX;
+        node.y += shiftY;
+      }
+    }
+    this.target.x *= scaleX;
+    this.target.y *= scaleY;
+    this.tinyFish.resize(scaleX, scaleY);
+    for (const ripple of this.ripples.instances) {
+      ripple.center.x *= scaleX;
+      ripple.center.y *= scaleY;
+    }
   }
 
   public reset(): void {
@@ -57,7 +99,6 @@ export class School {
     this.fish.forEach((fish, index) => fish.reset(index, this.random));
     this.tinyFish.reset();
     this.ripples.reset();
-    this.wakes.reset();
     this.targetActive = false;
   }
 
@@ -133,12 +174,10 @@ export class School {
     for (let index = 0; index < this.count; index += 1) {
       const fish = this.fish[index];
       this.integrate(fish, desired[index], desiredSpeed[index], dt);
-      this.emitTailWake(fish);
     }
     this.tinyFish.update(dt, time);
 
     this.ripples.update(dt);
-    this.wakes.update(dt);
   }
 
   private updateDepth(fish: Koi, dt: number): void {
@@ -211,40 +250,6 @@ export class School {
       fish,
       FISH.feeding.intervalSeconds[0],
       FISH.feeding.intervalSeconds[1],
-    );
-  }
-
-  private emitTailWake(fish: Koi): void {
-    const currentBeat = Math.floor(fish.swimPhase / Math.PI);
-    if (currentBeat === fish.lastWakePhase) return;
-    fish.lastWakePhase = currentBeat;
-
-    const speedAmount = clamp(
-      (fish.speed - FISH.tailWake.minimumSpeed) /
-        Math.max(fish.maximumSpeed - FISH.tailWake.minimumSpeed, 0.1),
-      0,
-      1,
-    );
-    const surfaceAmount = Math.pow(
-      clamp(1 - fish.depth / Math.max(FISH.tailWake.depthCutoff, 0.01), 0, 1),
-      FISH.tailWake.depthFalloffExponent,
-    );
-    const energy = speedAmount * clamp(fish.tailEffort, 0, 1.4) * surfaceAmount;
-    if (energy <= 0.025) return;
-
-    const tail = fish.spine[SPINE_NODES - 1];
-    const directionX = -Math.cos(fish.heading);
-    const directionY = -Math.sin(fish.heading);
-    const wakeLength =
-      FISH.tailWake.length[0] +
-      (FISH.tailWake.length[1] - FISH.tailWake.length[0]) * clamp(energy, 0, 1);
-    this.wakes.emit(
-      tail.x,
-      tail.y,
-      directionX,
-      directionY,
-      energy * FISH.tailWake.strength,
-      wakeLength,
     );
   }
 

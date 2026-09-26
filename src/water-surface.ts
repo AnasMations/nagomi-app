@@ -44,6 +44,7 @@ const fragmentShader = /* glsl */ `
   uniform vec4 uRipplePhysics[MAX_RIPPLE_TYPES];
   uniform vec4 uRippleCurves[MAX_RIPPLE_TYPES];
   uniform vec3 uColorTint;
+  uniform float uClarity;
   uniform float uShowCurrentEffect;
   uniform float uLargeCellSize;
   uniform float uLargeCurrentOpacity;
@@ -313,15 +314,15 @@ const fragmentShader = /* glsl */ `
 
       color +=
         (largeVein * uLargeCurrentColor + largeCore * uLargeCurrentCoreColor)
-        * uLargeCurrentOpacity;
+        * uLargeCurrentOpacity * (1.0 - uClarity);
       color +=
         (
           secondaryLargeVein * uSecondaryLargeCurrentColor
           + secondaryLargeCore * uSecondaryLargeCurrentCoreColor
-        ) * uSecondaryLargeCurrentOpacity;
+        ) * uSecondaryLargeCurrentOpacity * (1.0 - uClarity);
       color +=
         (detailVein * uDetailCurrentColor + detailCore * uDetailCurrentCoreColor)
-        * uDetailCurrentOpacity;
+        * uDetailCurrentOpacity * (1.0 - uClarity);
     }
 
     gl_FragColor = vec4(color, 1.0);
@@ -333,6 +334,7 @@ type CurrentLayerName = (typeof currentLayerNames)[number];
 
 interface RuntimeWaterAppearance {
   colorTint: THREE.Color;
+  clarity: number;
   largeCurrentColor: THREE.Color;
   largeCurrentCoreColor: THREE.Color;
   largeCellSize: number;
@@ -353,6 +355,7 @@ interface RuntimeWaterAppearance {
 function waterAppearanceFromConfig(): RuntimeWaterAppearance {
   return {
     colorTint: new THREE.Color().setRGB(...WATER.colorTint),
+    clarity: WATER.clarity,
     largeCurrentColor: new THREE.Color().setRGB(...WATER.largeCurrentColor),
     largeCurrentCoreColor: new THREE.Color().setRGB(
       ...WATER.largeCurrentCoreColor,
@@ -419,6 +422,7 @@ export class WaterSurfacePass {
         uRipplePhysics: { value: this.ripplePhysics },
         uRippleCurves: { value: this.rippleCurves },
         uColorTint: { value: new THREE.Color() },
+        uClarity: { value: WATER.clarity },
         uShowCurrentEffect: { value: 0 },
         uLargeCellSize: { value: 0 },
         uLargeCurrentOpacity: { value: 0 },
@@ -451,6 +455,10 @@ export class WaterSurfacePass {
     });
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
     this.mesh.frustumCulled = false;
+  }
+
+  public resize(width: number, height: number): void {
+    this.material.uniforms.uResolution.value.set(width, height);
   }
 
   public refreshConfig(): void {
@@ -509,6 +517,7 @@ export class WaterSurfacePass {
     this.material.uniforms.uColorTint.value.copy(
       this.currentAppearance.colorTint,
     );
+    this.material.uniforms.uClarity.value = this.currentAppearance.clarity;
     this.material.uniforms.uShowCurrentEffect.value = WATER.showCurrentEffect ? 1 : 0;
     this.material.uniforms.uLargeCellSize.value =
       this.currentAppearance.largeCellSize;
@@ -580,6 +589,7 @@ export class WaterSurfacePass {
     const current = this.currentAppearance;
     const target = this.targetAppearance;
     current.colorTint.lerp(target.colorTint, blend);
+    current.clarity += (target.clarity - current.clarity) * blend;
     current.largeCurrentColor.lerp(target.largeCurrentColor, blend);
     current.largeCurrentCoreColor.lerp(target.largeCurrentCoreColor, blend);
     current.secondaryLargeCurrentColor.lerp(

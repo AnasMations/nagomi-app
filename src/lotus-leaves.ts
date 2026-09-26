@@ -5,6 +5,7 @@ import {
   LOTUS,
   LOTUS_FLOWERS,
   LOTUS_LEAVES,
+  viewportPoint,
 } from "./config";
 
 interface Point {
@@ -272,10 +273,11 @@ export class LotusLeavesPass {
     const visibleLeaves = LOTUS_LEAVES.slice(0, LOTUS.visibleLeafCount);
     const visibleFlowers = LOTUS_FLOWERS.slice(0, LOTUS.visibleFlowerCount);
     for (const [leafIndex, leaf] of visibleLeaves.entries()) {
+      const placement = viewportPoint(leaf.x, leaf.y);
       const center = {
-        x: leaf.x + Math.sin(time * 0.12 + leaf.phase) * LOTUS.driftX,
+        x: placement.x + Math.sin(time * 0.12 + leaf.phase) * LOTUS.driftX,
         y:
-          leaf.y +
+          placement.y +
           Math.cos(time * 0.15 + leaf.phase * 1.3) * LOTUS.driftY,
       };
       const angle =

@@ -140,18 +140,36 @@ Intermediate render textures let the water distort the underwater scene
 without also distorting objects that float above the surface.
 
 Some ripples come from visitors, but others come from rain or a feeding koi.
-Fast fish near the surface can also leave a short tail wake.
-
 ## 7. Weather and settings change the rules
 
 Weather presets are more than colored filters. A preset supplies final values
-for selected pond-bed, current, lighting, and shadow settings. Changing weather
-overwrites only those fields and leaves unrelated custom settings alone.
+for selected koi, pond-bed, and water settings. Changing weather overwrites
+only those fields; a value you've edited yourself keeps overriding the preset
+until you touch that same field again, at which point the new preset's value
+applies once more.
 
-The settings panel edits the same runtime configuration used by the
-simulation and renderer. Most visual and movement values live in
-[`src/config.ts`](../src/config.ts), while weather-specific values live in
-[`src/weather.ts`](../src/weather.ts).
+Every setting is declared once, in
+[`src/settings/definition.ts`](../src/settings/definition.ts): its default,
+valid range, control kind (a slider, a color picker, a switch, …), and which
+subsystem should refresh when it changes. A single store
+([`src/settings/store.ts`](../src/settings/store.ts)) computes each setting's
+effective value as `defaults ⊕ weather ⊕ your edits`, writes it into one
+mutable object (`store.live`), and notifies the affected subsystem. The
+settings panel ([`src/config-editor.tsx`](../src/config-editor.tsx),
+[`src/quick-settings.tsx`](../src/quick-settings.tsx)) is generated from that
+same schema, so a new setting never needs its own hand-written slider.
+
+[`src/config.ts`](../src/config.ts) re-exports pieces of `store.live` under
+their old names (`FISH`, `WATER`, `LOTUS_LEAVES`, …) so the simulation and
+renderer keep reading plain objects every frame, unaware that a settings UI
+exists. Settings persist to `localStorage` as a sparse list of your edits
+(not a full copy of every value), which is also what makes a later change to
+a default not get silently overwritten by an old save.
+
+**To add a setting:** add a node in `src/settings/definition.ts` with its
+bounds and, if a subsystem needs to react to it, an `effect` tag. If that tag
+is new, add a handler for it in `src/settings/effects.ts`. Nothing else needs
+to change — the UI picks it up automatically.
 
 ## Why the pond stays responsive
 
@@ -175,7 +193,9 @@ garbage-collection work low.
 | [`src/ripple-system.ts`](../src/ripple-system.ts) | Manages reusable ripple events |
 | [`src/lotus-leaves.ts`](../src/lotus-leaves.ts) | Builds lotus leaves, flowers, and their shadows |
 | [`src/weather.ts`](../src/weather.ts) | Defines the visual weather presets |
-| [`src/config.ts`](../src/config.ts) | Holds the main tunable values |
+| [`src/config.ts`](../src/config.ts) | Re-exports the live settings tree under their old names |
+| [`src/settings/definition.ts`](../src/settings/definition.ts) | Declares every setting: default, bounds, control kind, effect |
+| [`src/settings/store.ts`](../src/settings/store.ts) | Layers defaults, weather, and your edits into one live object |
 
 The important idea is simple: many small rules run continuously, and their
 combined result creates the feeling of a living pond.

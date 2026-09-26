@@ -3,6 +3,7 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   FISH,
+  KOI_PALETTES,
   MAX_FISH,
   SPINE_NODES,
 } from "./config";
@@ -78,6 +79,8 @@ class GeometryBatch {
   private readonly colorValues?: Float32Array;
   private readonly colorAttribute?: THREE.BufferAttribute;
   private cursor = 0;
+  private previewOrigin: Vec2 | null = null;
+  private previewScale = 1;
 
   public constructor(
     private readonly geometry: THREE.BufferGeometry,
@@ -104,10 +107,19 @@ class GeometryBatch {
     this.cursor = 0;
   }
 
+  public setPreviewTransform(origin: Vec2 | null, scale = 1): void {
+    this.previewOrigin = origin;
+    this.previewScale = scale;
+  }
+
   public point(point: Vec2, color: THREE.Color = DEFAULT_COLOR): void {
     if (this.cursor + 3 > this.values.length) return;
-    this.values[this.cursor] = point.x;
-    this.values[this.cursor + 1] = point.y;
+    this.values[this.cursor] = this.previewOrigin
+      ? CANVAS_WIDTH * 0.5 + (point.x - this.previewOrigin.x) * this.previewScale
+      : point.x;
+    this.values[this.cursor + 1] = this.previewOrigin
+      ? CANVAS_HEIGHT * 0.5 + (point.y - this.previewOrigin.y) * this.previewScale
+      : point.y;
     this.values[this.cursor + 2] = 0;
     if (this.colorValues) {
       this.colorValues[this.cursor] = color.r;
@@ -235,6 +247,7 @@ export class FishRenderer {
   private readonly targetFishShadowColor = new THREE.Color(FISH.shadow.color);
   private previousAppearanceTime = -1;
   private currentVisualDepth = 0;
+  private previewFamilyIndex: number | null = null;
 
   public constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -343,17 +356,68 @@ export class FishRenderer {
   }
 
   public refreshConfig(): void {
-    this.targetFishShadowColor.setHex(FISH.shadow.color);
-    this.pondBed.refreshConfig();
-    this.waterSurface.refreshConfig();
+    for (const section of [
+      "koi", "koi-palettes", "tiny-fish", "pond-bed", "water",
+      "lotus", "duckweed", "butterflies",
+    ]) this.refreshSection(section);
+  }
+
+  public refreshSection(sectionId: string): void {
+    switch (sectionId) {
+      case "koi":
+        this.targetFishShadowColor.setHex(FISH.shadow.color);
+        // Eye color and the shared koi palette are baked into appearances.
+        this.refreshFishAppearances();
+        break;
+      case "koi-palettes":
+      case "koi-patterns":
+        this.refreshFishAppearances();
+        break;
+      case "tiny-fish":
+        this.tinyFishRenderer.refreshConfig();
+        break;
+      case "pond-bed":
+        this.pondBed.refreshConfig();
+        break;
+      case "water":
+        this.waterSurface.refreshConfig();
+        break;
+      case "lotus":
+        this.lotusLeaves.refreshConfig();
+        break;
+      case "duckweed":
+      case "duckweed-patches":
+        this.duckweed.refreshConfig();
+        break;
+      case "butterflies":
+        this.butterflies.refreshConfig(true);
+        break;
+      case "butterfly-spawns":
+        this.butterflies.refreshConfig();
+        break;
+      default:
+        break;
+    }
+  }
+
+  private refreshFishAppearances(): void {
     for (let index = 0; index < this.appearances.length; index += 1) {
       this.appearances[index] = createFishAppearance(index);
       this.depthAppearances[index] = createFishAppearance(index);
     }
-    this.tinyFishRenderer.refreshConfig();
-    this.duckweed.refreshConfig();
-    this.lotusLeaves.refreshConfig();
-    this.butterflies.refreshConfig();
+  }
+
+  public resize(width: number, height: number, oldWidth: number, oldHeight: number): void {
+    this.renderer.setSize(width, height, false);
+    this.underwaterTarget.setSize(width, height);
+    this.compositeTarget.setSize(width, height);
+    this.camera.right = width;
+    this.camera.bottom = height;
+    this.camera.updateProjectionMatrix();
+    this.pondBed.resize(width, height);
+    this.surfaceDisturbance.resize(width, height);
+    this.waterSurface.resize(width, height);
+    this.butterflies.resize(width / oldWidth, height / oldHeight);
   }
 
   public dispose(): void {
@@ -367,6 +431,10 @@ export class FishRenderer {
 
   public setWeatherPreset(id: WeatherPresetId): void {
     this.weather.setPreset(id);
+  }
+
+  public setPreviewFamily(index: number | null): void {
+    this.previewFamilyIndex = index;
   }
 
   public draw(school: School, time: number, showDebug: boolean): void {
@@ -387,11 +455,33 @@ export class FishRenderer {
     this.bodyTriangles.reset();
     this.outlineLines.reset();
 
+    const previewIndex = this.previewFamilyIndex;
+    let selectedFishIndex = 0;
+    if (previewIndex !== null) {
+      for (let index = 0; index < school.count; index += 1) {
+        if (
+          index % KOI_PALETTES.length === previewIndex &&
+          (index + 1) % FISH.tinyEvery !== 0
+        ) {
+          selectedFishIndex = index;
+          break;
+        }
+      }
+    }
+    const transformOrigin = previewIndex === null
+      ? null
+      : school.fish[selectedFishIndex].position;
+    for (const batch of [this.shadowTriangles, this.outerTriangles, this.bodyTriangles, this.outlineLines]) {
+      batch.setPreviewTransform(transformOrigin, previewIndex === null ? 1 : 1.6);
+    }
+
     for (let index = 0; index < school.count; index += 1) {
+      if (previewIndex !== null && index !== selectedFishIndex) continue;
       const fish = school.fish[index];
       this.buildRenderSpine(fish);
-      const appearance = this.depthAppearances[index];
-      this.updateDepthAppearance(fish, this.appearances[index], appearance);
+      const appearanceIndex = previewIndex ?? index;
+      const appearance = this.depthAppearances[appearanceIndex];
+      this.updateDepthAppearance(fish, this.appearances[appearanceIndex], appearance);
       this.drawKoi(fish, appearance);
       if (showDebug) this.drawDebug(fish, appearance);
     }
@@ -400,9 +490,16 @@ export class FishRenderer {
     this.outerTriangles.commit();
     this.bodyTriangles.commit();
     this.outlineLines.commit();
-    this.tinyFishRenderer.update(school.tinyFish);
+    this.tinyFishRenderer.group.visible = previewIndex === null;
+    this.tinyFishRenderer.shadowGroup.visible = previewIndex === null;
+    if (previewIndex === null) this.tinyFishRenderer.update(school.tinyFish);
     this.pondBed.update(time);
-    this.surfaceDisturbance.render(this.renderer, school, time);
+    this.surfaceDisturbance.render(
+      this.renderer,
+      school,
+      time,
+      previewIndex === null ? null : selectedFishIndex,
+    );
     this.waterSurface.update(school, time);
     this.duckweed.update(time);
     this.lotusLeaves.update(time);
@@ -508,10 +605,10 @@ export class FishRenderer {
     const shadowOffset = {
       x:
         FISH.shadow.offset.x +
-        FISH.depth.shadow.additionalOffset.x * this.currentVisualDepth,
+        FISH.shadow.depthOffset.x * this.currentVisualDepth,
       y:
         FISH.shadow.offset.y +
-        FISH.depth.shadow.additionalOffset.y * this.currentVisualDepth,
+        FISH.shadow.depthOffset.y * this.currentVisualDepth,
     };
     const opacity =
       FISH.shadow.surfaceOpacity +
@@ -534,10 +631,10 @@ export class FishRenderer {
     const shadowOffset = {
       x:
         FISH.shadow.offset.x +
-        FISH.depth.shadow.additionalOffset.x * this.currentVisualDepth,
+        FISH.shadow.depthOffset.x * this.currentVisualDepth,
       y:
         FISH.shadow.offset.y +
-        FISH.depth.shadow.additionalOffset.y * this.currentVisualDepth,
+        FISH.shadow.depthOffset.y * this.currentVisualDepth,
     };
     const opacity =
       FISH.shadow.surfaceOpacity +

@@ -3,6 +3,7 @@ import {
   CANVAS_WIDTH,
   TINY_FISH,
   TINY_FISH_SCHOOLS,
+  viewportPoint,
   type TinyFishSchoolSetting,
 } from "./config";
 import {
@@ -60,12 +61,13 @@ export class TinyFishSchools {
 
     for (const [schoolIndex, setting] of TINY_FISH_SCHOOLS.entries()) {
       const start = this.fish.length;
+      const placement = viewportPoint(setting.x, setting.y);
       for (let index = 0; index < setting.count; index += 1) {
         const angle = this.random.range(0, Math.PI * 2);
         const radius = Math.sqrt(this.random.unit());
         const position = vec(
-          setting.x + Math.cos(angle) * setting.spreadX * radius,
-          setting.y + Math.sin(angle) * setting.spreadY * radius,
+          placement.x + Math.cos(angle) * setting.spreadX * radius,
+          placement.y + Math.sin(angle) * setting.spreadY * radius,
         );
         const heading = setting.heading + this.random.range(-0.34, 0.34);
         const bodyLength =
@@ -100,6 +102,47 @@ export class TinyFishSchools {
         phase: this.random.range(0, Math.PI * 2),
         setting,
       });
+    }
+  }
+
+  public refreshConfig(): void {
+    const previous = new Map<string, TinyFishAgent>();
+    for (const [schoolIndex, range] of this.ranges.entries()) {
+      for (let index = 0; index < range.count; index += 1) {
+        previous.set(`${schoolIndex}:${index}`, this.fish[range.start + index]);
+      }
+    }
+    this.reset();
+    for (const range of this.ranges) {
+      for (let index = 0; index < range.count; index += 1) {
+        const next = this.fish[range.start + index];
+        const old = previous.get(`${next.schoolIndex}:${index}`);
+        if (!old) continue;
+        next.position = { ...old.position };
+        next.velocity = { ...old.velocity };
+        next.tailPhase = old.tailPhase;
+        next.phase = old.phase;
+        next.fleeDelay = old.fleeDelay;
+        next.fleeTime = old.fleeTime;
+        next.fleeDuration = old.fleeDuration;
+      }
+    }
+  }
+
+  public resize(scaleX: number, scaleY: number): void {
+    for (const fish of this.fish) {
+      fish.position.x *= scaleX;
+      fish.position.y *= scaleY;
+    }
+    this.callPoint.x *= scaleX;
+    this.callPoint.y *= scaleY;
+  }
+
+  public shiftSchool(schoolIndex: number, shiftX: number, shiftY: number): void {
+    for (const fish of this.fish) {
+      if (fish.schoolIndex !== schoolIndex) continue;
+      fish.position.x += shiftX;
+      fish.position.y += shiftY;
     }
   }
 

@@ -3,6 +3,7 @@ node_modules/
 dist/
 .vite/
 coverage/
+context/
 
 # Local environment and operating-system files
 .env
@@ -14,3 +15,5 @@ coverage/
 # This project uses npm and package-lock.json
 pnpm-lock.yaml
 yarn.lock
+
+.claude

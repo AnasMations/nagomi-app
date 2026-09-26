@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { DUCKWEED, DUCKWEED_PATCHES } from "./config";
+import { DUCKWEED, DUCKWEED_PATCHES, viewportPoint } from "./config";
 import {
   SurfaceGeometryBatch,
   type SurfacePoint,
@@ -128,9 +128,10 @@ export class DuckweedPass {
         Math.sin(time * 0.075 + patch.phase) * DUCKWEED.rotationAmount;
       const cosine = Math.cos(rotation);
       const sine = Math.sin(rotation);
+      const placement = viewportPoint(patch.x, patch.y);
       const center = {
-        x: patch.x + leaf.offsetX * cosine - leaf.offsetY * sine + driftX,
-        y: patch.y + leaf.offsetX * sine + leaf.offsetY * cosine + driftY,
+        x: placement.x + leaf.offsetX * cosine - leaf.offsetY * sine + driftX,
+        y: placement.y + leaf.offsetX * sine + leaf.offsetY * cosine + driftY,
       };
       const angle = leaf.angle + rotation;
       const pulse = 1 + Math.sin(time * 0.16 + leaf.phase) * 0.018;

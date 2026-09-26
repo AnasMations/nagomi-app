@@ -11,12 +11,12 @@ export type ColorTriplet = readonly [number, number, number];
 type Direction = readonly [number, number];
 
 export interface WeatherConfigValues {
-  fish: {
+  koi: {
     shadow: {
       color: number;
     };
   };
-  pondBed: {
+  "pond-bed": {
     deepColor: ColorTriplet;
     shallowColor: ColorTriplet;
     verticalTone: number;
@@ -77,8 +77,8 @@ export const WEATHER_PRESETS: readonly WeatherPreset[] = [
     lightDirection: [-0.58, 0.82],
     rainStrength: 0,
     config: {
-      fish: { shadow: { color: 0x0b211e } },
-      pondBed: {
+      koi: { shadow: { color: 0x0b211e } },
+      "pond-bed": {
         deepColor: [0.486, 0.718, 0.631],
         shallowColor: [0.145, 0.395, 0.255],
         verticalTone: 0.8,
@@ -118,8 +118,8 @@ export const WEATHER_PRESETS: readonly WeatherPreset[] = [
     lightDirection: [0.36, 0.93],
     rainStrength: 10,
     config: {
-      fish: { shadow: { color: 0x0b211e } },
-      pondBed: {
+      koi: { shadow: { color: 0x0b211e } },
+      "pond-bed": {
         deepColor: [0.486, 0.718, 0.631],
         shallowColor: [0.145, 0.395, 0.255],
         verticalTone: 0.8,
@@ -160,8 +160,8 @@ export const WEATHER_PRESETS: readonly WeatherPreset[] = [
     lightDirection: [-0.58, 0.82],
     rainStrength: 0,
     config: {
-      fish: { shadow: { color: 0x0b211e } },
-      pondBed: {
+      koi: { shadow: { color: 0x0b211e } },
+      "pond-bed": {
         deepColor: [0.09, 0.15, 0.18],
         shallowColor: [0.05, 0.02, 0.02],
         verticalTone: 0.99,
@@ -201,8 +201,8 @@ export const WEATHER_PRESETS: readonly WeatherPreset[] = [
     lightDirection: [0.42, 0.9],
     rainStrength: 0,
     config: {
-      fish: { shadow: { color: 0x0b211e } },
-      pondBed: {
+      koi: { shadow: { color: 0x0b211e } },
+      "pond-bed": {
         deepColor: [0.486, 0.718, 0.631],
         shallowColor: [0.145, 0.395, 0.255],
         verticalTone: 0.8,
@@ -242,8 +242,8 @@ export const WEATHER_PRESETS: readonly WeatherPreset[] = [
     lightDirection: [0.32, 0.95],
     rainStrength: 0,
     config: {
-      fish: { shadow: { color: 0x0b211e } },
-      pondBed: {
+      koi: { shadow: { color: 0x0b211e } },
+      "pond-bed": {
         deepColor: [0.486, 0.718, 0.631],
         shallowColor: [0.145, 0.395, 0.255],
         verticalTone: 0.8,
@@ -283,8 +283,8 @@ export const WEATHER_PRESETS: readonly WeatherPreset[] = [
     lightDirection: [-0.7, 0.72],
     rainStrength: 0,
     config: {
-      fish: { shadow: { color: 0x0b211e } },
-      pondBed: {
+      koi: { shadow: { color: 0x0b211e } },
+      "pond-bed": {
         deepColor: [0.486, 0.718, 0.631],
         shallowColor: [0.145, 0.395, 0.255],
         verticalTone: 0.8,
@@ -324,8 +324,8 @@ export const WEATHER_PRESETS: readonly WeatherPreset[] = [
     lightDirection: [0.68, 0.74],
     rainStrength: 0,
     config: {
-      fish: { shadow: { color: 0x0b211e } },
-      pondBed: {
+      koi: { shadow: { color: 0x0b211e } },
+      "pond-bed": {
         deepColor: [0.486, 0.718, 0.631],
         shallowColor: [0.145, 0.395, 0.255],
         verticalTone: 0.8,

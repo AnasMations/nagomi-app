@@ -9,11 +9,11 @@ import {
   Moon,
   Plus,
   RotateCcw,
-  Search,
   Settings2,
   Shuffle,
   Sun,
   Sunset as SunsetIcon,
+  Undo2,
   Volume2,
   Waves,
   X,
@@ -45,37 +45,32 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { AUDIO } from "./audio-config";
 import { ConfigEditor } from "./config-editor";
 import {
+  CANVAS,
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   FISH,
   FIXED_STEP,
+  setCanvasSize,
 } from "./config";
 import { FishRenderer } from "./fish-renderer";
 import { useIsMobile } from "./hooks/use-mobile";
 import { clamp, vec } from "./math";
-import {
-  applyRuntimeConfigDraft,
-  applyWeatherConfig,
-  applyWeatherConfigToDraft,
-  createDefaultRuntimeConfigDraft,
-  createRuntimeConfigDraft,
-  resetRuntimeConfig,
-  updateRuntimeConfigDraft,
-  type ConfigPath,
-  type RuntimeConfigDraft,
-} from "./runtime-config";
+import { connectSettingsEffects } from "./settings/effects";
+import { connectPersistence, loadInto } from "./settings/persistence";
+import { useSettingsMeta } from "./settings/react";
+import { settings } from "./settings/store";
+import type { SectionId } from "./settings/definition";
 import { School } from "./school";
 import {
   DEFAULT_WEATHER_PRESET_ID,
-  WEATHER_PRESETS,
   getWeatherPreset,
+  WEATHER_PRESETS,
   type WeatherPresetId,
 } from "./weather";
 
@@ -95,6 +90,29 @@ const emptyStats: SceneStats = {
 
 const AMBIENT_IDLE_DELAY_MS = 2400;
 const GITHUB_REPOSITORY = "msk1039/procedural-koi-threejs";
+
+// Restores v2 (or migrates v1) localStorage settings into the store before
+// the first render, and wires up debounced+pagehide saving from then on.
+loadInto(settings);
+connectPersistence(settings);
+
+function pondRenderSize(display: HTMLElement): { width: number; height: number } {
+  const { width, height } = display.getBoundingClientRect();
+  const portrait =
+    window.matchMedia("(max-width: 700px) and (orientation: portrait)").matches &&
+    width > 0 &&
+    height > 0;
+  if (!portrait) return { width: CANVAS.width, height: CANVAS.height };
+
+  const renderWidth = Math.min(
+    CANVAS.width,
+    Math.max(CANVAS.height, Math.round(width * 0.7)),
+  );
+  return {
+    width: renderWidth,
+    height: Math.max(CANVAS.height, Math.round((renderWidth * height) / width)),
+  };
+}
 
 function isEditableTarget(target: EventTarget | null): boolean {
   return (
@@ -133,6 +151,7 @@ function WeatherIcon({ id }: { id: WeatherPresetId }) {
 export function App() {
   const isMobile = useIsMobile();
   const stageRef = useRef<HTMLElement>(null);
+  const displayRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ambientAudioContextRef = useRef<AudioContext | null>(null);
   const ambientAudioGainRef = useRef<GainNode | null>(null);
@@ -140,10 +159,6 @@ export function App() {
   const ambientAudioLoadingRef = useRef<Promise<void> | null>(null);
   const runtimeRef = useRef<PondRuntime | null>(null);
   const ambientModeRef = useRef(false);
-  const weatherPresetRef = useRef<WeatherPresetId>(
-    DEFAULT_WEATHER_PRESET_ID,
-  );
-  const rainEnabledRef = useRef(false);
   const soundEnabledRef = useRef<boolean>(AUDIO.defaultEnabled);
   const [stats, setStats] = useState<SceneStats>(emptyStats);
   const [showInterface, setShowInterface] = useState(true);
@@ -151,25 +166,16 @@ export function App() {
   const [ambientControlsVisible, setAmbientControlsVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [weatherMenuOpen, setWeatherMenuOpen] = useState(false);
-  const [rainEnabled, setRainEnabled] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(
     AUDIO.defaultEnabled,
   );
-  const [weatherPreset, setWeatherPreset] = useState<WeatherPresetId>(
-    DEFAULT_WEATHER_PRESET_ID,
-  );
-  const [draftConfig, setDraftConfig] = useState<RuntimeConfigDraft>(() =>
-    createRuntimeConfigDraft(),
-  );
-  const [settingsDirty, setSettingsDirty] = useState(false);
+  const settingsMeta = useSettingsMeta();
+  const { weather: weatherPreset, rain: rainEnabled, canUndo } = settingsMeta;
+  const [selectedFamily, setSelectedFamily] = useState(0);
+  const [previewFamily, setPreviewFamily] = useState<number | null>(null);
+  const previewFamilyRef = useRef<number | null>(null);
+  const [confirmResetAll, setConfirmResetAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const changeKoiCount = useCallback((amount: number) => {
-    const runtime = runtimeRef.current;
-    if (!runtime) return;
-    runtime.school.setCount(runtime.school.count + amount);
-    setStats(sceneStats(runtime));
-  }, []);
 
   const scatter = useCallback(() => {
     const runtime = runtimeRef.current;
@@ -178,37 +184,37 @@ export function App() {
     setStats(sceneStats(runtime));
   }, []);
 
-  const applyRuntimeConfig = useCallback(() => {
-    const runtime = runtimeRef.current;
-    if (!runtime) return;
-    runtime.school.refreshConfig();
-    runtime.renderer.refreshConfig();
-    setStats(sceneStats(runtime));
+  const setFamilyPreview = useCallback((index: number | null) => {
+    previewFamilyRef.current = index;
+    setPreviewFamily(index);
+    runtimeRef.current?.renderer.setPreviewFamily(index);
   }, []);
 
-  const handleConfigChange = useCallback((
-    sectionId: string,
-    path: ConfigPath,
-    value: boolean | number | string,
-  ) => {
-    setDraftConfig((current) =>
-      updateRuntimeConfigDraft(current, sectionId, path, value),
-    );
-    setSettingsDirty(true);
+  // Clears the family preview on any settings edit that doesn't keep it
+  // (koi-palettes/koi-patterns edits and a few koi body/eye fields do).
+  useEffect(() => {
+    return settings.subscribe((batch) => {
+      if (previewFamilyRef.current === null) return;
+      if (batch.some((change) => !change.keepsFamilyPreview)) setFamilyPreview(null);
+    });
+  }, [setFamilyPreview]);
+
+  // Keeps the koi count readout in sync after a koi:count effect runs
+  // (settings/effects.ts calls school.setCount on the next animation frame).
+  useEffect(() => {
+    return settings.subscribe((batch) => {
+      if (!batch.some((change) => change.effect === "koi:count")) return;
+      requestAnimationFrame(() => {
+        const runtime = runtimeRef.current;
+        if (runtime) setStats(sceneStats(runtime));
+      });
+    });
   }, []);
 
-  const saveSettings = useCallback(() => {
-    applyRuntimeConfigDraft(draftConfig);
-    applyRuntimeConfig();
-    setSettingsDirty(false);
-  }, [applyRuntimeConfig, draftConfig]);
-
-  const resetSettings = useCallback(() => {
-    resetRuntimeConfig();
-    setDraftConfig(createDefaultRuntimeConfigDraft());
-    setSettingsDirty(false);
-    applyRuntimeConfig();
-  }, [applyRuntimeConfig]);
+  const changeKoiCount = useCallback((amount: number) => {
+    const current = runtimeRef.current?.school.count ?? settings.live.koi.initialCount;
+    settings.set(["koi", "initialCount"], clamp(current + amount, 1, 48));
+  }, []);
 
   const setAmbientModeState = useCallback((active: boolean) => {
     ambientModeRef.current = active;
@@ -235,11 +241,16 @@ export function App() {
     }
   }, [setAmbientModeState]);
 
-  const changeRainEnabled = useCallback((enabled: boolean) => {
-    rainEnabledRef.current = enabled;
-    setRainEnabled(enabled);
-    runtimeRef.current?.school.setRainIntensity(enabled ? 1 : 0);
-  }, []);
+  // Keeps the renderer's weather look and the simulation's rain intensity in
+  // sync with the store, whether they change via a slider, Undo, or reload.
+  useEffect(() => {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    runtime.renderer.setWeatherPreset(weatherPreset);
+  }, [weatherPreset]);
+  useEffect(() => {
+    runtimeRef.current?.school.setRainIntensity(rainEnabled ? 1 : 0);
+  }, [rainEnabled]);
 
   const startAmbientAudio = useCallback(async (): Promise<void> => {
     if (ambientAudioSourceRef.current) {
@@ -300,6 +311,36 @@ export function App() {
     }
   }, [startAmbientAudio]);
 
+  const undoLastInteraction = useCallback(() => {
+    settings.undo();
+  }, []);
+
+  const resetSection = useCallback((sectionIds: readonly SectionId[]) => {
+    settings.resetSections(sectionIds);
+    if (previewFamilyRef.current !== null && sectionIds.some((id) => id !== "koi-palettes" && id !== "koi-patterns")) {
+      setFamilyPreview(null);
+    }
+  }, [setFamilyPreview]);
+
+  const resetSettings = useCallback(() => {
+    settings.resetAll();
+    setFamilyPreview(null);
+    setConfirmResetAll(false);
+  }, [setFamilyPreview]);
+
+  const changeFamily = useCallback((index: number) => {
+    setSelectedFamily(index);
+    setFamilyPreview(index);
+  }, [setFamilyPreview]);
+
+  const handleSettingsOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setFamilyPreview(null);
+      setConfirmResetAll(false);
+    }
+    setSettingsOpen(open);
+  }, [setFamilyPreview]);
+
   useEffect(() => {
     const unlockAmbientAudio = (): void => {
       window.removeEventListener("pointerdown", unlockAmbientAudio);
@@ -327,18 +368,23 @@ export function App() {
   }, []);
 
   const changeWeather = useCallback((id: WeatherPresetId) => {
-    const preset = getWeatherPreset(id);
-    applyWeatherConfig(preset.config);
-    setDraftConfig((current) =>
-      applyWeatherConfigToDraft(current, preset.config),
-    );
-    weatherPresetRef.current = id;
-    setWeatherPreset(id);
-    runtimeRef.current?.renderer.refreshConfig();
-    runtimeRef.current?.renderer.setWeatherPreset(id);
-    changeRainEnabled(preset.rainStrength > 0);
+    setFamilyPreview(null);
+    settings.setWeather(id);
     setWeatherMenuOpen(false);
-  }, [changeRainEnabled]);
+  }, [setFamilyPreview]);
+
+  const handleRainChange = useCallback((enabled: boolean) => {
+    settings.setRain(enabled);
+  }, []);
+
+  const handleSoundChange = useCallback((enabled: boolean) => {
+    setAmbientSoundEnabled(enabled);
+  }, [setAmbientSoundEnabled]);
+
+  const resetAtmosphere = useCallback(() => {
+    changeWeather(DEFAULT_WEATHER_PRESET_ID);
+    setAmbientSoundEnabled(false);
+  }, [changeWeather, setAmbientSoundEnabled]);
 
   useEffect(() => {
     const handleFullscreenChange = (): void => {
@@ -386,15 +432,34 @@ export function App() {
   }, [ambientMode, settingsOpen, weatherMenuOpen]);
 
   useEffect(() => {
+    if (!showInterface && previewFamilyRef.current !== null) setFamilyPreview(null);
+  }, [showInterface, setFamilyPreview]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const display = displayRef.current;
+    if (!canvas || !display) return;
+    const initialSize = pondRenderSize(display);
+    setCanvasSize(initialSize.width, initialSize.height);
     const school = new School();
     const renderer = new FishRenderer(canvas);
     const runtime: PondRuntime = { school, renderer, showDebug: false };
     runtimeRef.current = runtime;
-    const activeWeather = getWeatherPreset(weatherPresetRef.current);
+    const activeWeather = getWeatherPreset(settings.meta().weather);
     renderer.setWeatherPreset(activeWeather.id);
-    school.setRainIntensity(rainEnabledRef.current ? 1 : 0);
+    school.setRainIntensity(settings.meta().rain ? 1 : 0);
+    const disconnectEffects = connectSettingsEffects(settings, { school, renderer });
+
+    const resizeObserver = new ResizeObserver(() => {
+      const nextSize = pondRenderSize(display);
+      if (nextSize.width === CANVAS_WIDTH && nextSize.height === CANVAS_HEIGHT) return;
+      const oldWidth = CANVAS_WIDTH;
+      const oldHeight = CANVAS_HEIGHT;
+      setCanvasSize(nextSize.width, nextSize.height);
+      school.resize(nextSize.width / oldWidth, nextSize.height / oldHeight);
+      renderer.resize(nextSize.width, nextSize.height, oldWidth, oldHeight);
+    });
+    resizeObserver.observe(display);
 
     let animationFrame = 0;
     let accumulator = 0;
@@ -422,10 +487,10 @@ export function App() {
           school.scatter();
           break;
         case "BracketLeft":
-          school.setCount(school.count - 1);
+          changeKoiCount(-1);
           break;
         case "BracketRight":
-          school.setCount(school.count + 1);
+          changeKoiCount(1);
           break;
         case "KeyD":
           runtime.showDebug = !runtime.showDebug;
@@ -452,11 +517,13 @@ export function App() {
 
     return () => {
       cancelAnimationFrame(animationFrame);
+      disconnectEffects();
+      resizeObserver.disconnect();
       window.removeEventListener("keydown", handleKeyDown);
       renderer.dispose();
       runtimeRef.current = null;
     };
-  }, [toggleAmbientMode]);
+  }, [changeKoiCount, toggleAmbientMode]);
 
   const callFish = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
     const runtime = runtimeRef.current;
@@ -505,13 +572,18 @@ export function App() {
       onPointerDownCapture={revealHiddenInterfaceOnMobile}
     >
       <div className="pond-shell">
-        <div className="display">
+        <div className="display" ref={displayRef}>
           <canvas
             ref={canvasRef}
             id="pond"
             aria-label="Animated procedural koi"
             onPointerDown={callFish}
           />
+          {previewFamily !== null && settingsOpen && (
+            <div className="pond-preview-label" aria-live="polite">
+              {settings.live["koi-palettes"][previewFamily]?.name ?? "Koi"} family preview
+            </div>
+          )}
         </div>
 
         {showInterface && (
@@ -531,7 +603,7 @@ export function App() {
               <Separator orientation="vertical" />
               <Drawer
                 open={settingsOpen}
-                onOpenChange={setSettingsOpen}
+                onOpenChange={handleSettingsOpenChange}
                 modal={false}
                 swipeDirection={isMobile ? "down" : "right"}
                 showSwipeHandle={isMobile}
@@ -554,7 +626,7 @@ export function App() {
                   <div>
                     <DrawerTitle>Pond settings</DrawerTitle>
                     <DrawerDescription>
-                      Adjust values, then apply them to the pond.
+                      Changes preview in the pond and save on this device.
                     </DrawerDescription>
                   </div>
                   <DrawerClose
@@ -565,34 +637,42 @@ export function App() {
                     <X aria-hidden="true" />
                   </DrawerClose>
                 </DrawerHeader>
-                <div className="settings-search">
-                  <Search aria-hidden="true" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Find a setting…"
-                    aria-label="Find a setting"
-                  />
-                </div>
                 <div className="settings-scroll">
                   <ConfigEditor
                     query={searchQuery}
-                    draft={draftConfig}
-                    isMobile={isMobile}
-                    hasPendingChanges={settingsDirty}
-                    onApply={saveSettings}
-                    onReset={resetSettings}
-                    onChange={handleConfigChange}
+                    onQueryChange={setSearchQuery}
+                    weather={weatherPreset}
+                    rainEnabled={rainEnabled}
+                    soundEnabled={soundEnabled}
+                    onWeatherChange={changeWeather}
+                    onRainChange={handleRainChange}
+                    onSoundChange={handleSoundChange}
+                    onResetSection={resetSection}
+                    onResetAtmosphere={resetAtmosphere}
+                    selectedFamily={selectedFamily}
+                    previewFamily={previewFamily}
+                    onFamilyChange={changeFamily}
+                    onPreviewFamilyChange={setFamilyPreview}
                   />
                 </div>
                 <DrawerFooter className="settings-drawer__footer">
-                  <Button variant="outline" onClick={resetSettings}>
-                    <RotateCcw aria-hidden="true" />
-                    Reset defaults
-                  </Button>
-                  <Button onClick={saveSettings} disabled={!settingsDirty}>
-                    Apply changes
-                  </Button>
+                  {confirmResetAll ? (
+                    <div className="settings-reset-confirm" role="group" aria-label="Confirm reset all settings">
+                      <span>Reset all settings on this device?</span>
+                      <Button variant="ghost" onClick={() => setConfirmResetAll(false)}>Cancel</Button>
+                      <Button variant="destructive" onClick={resetSettings}>Reset all</Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Button variant="ghost" onClick={undoLastInteraction} disabled={!canUndo}>
+                        <Undo2 aria-hidden="true" /> Undo
+                      </Button>
+                      <Button variant="outline" onClick={() => setConfirmResetAll(true)}>
+                        <RotateCcw aria-hidden="true" /> Reset all
+                      </Button>
+                      <DrawerClose render={<Button />}>Done</DrawerClose>
+                    </>
+                  )}
                 </DrawerFooter>
               </DrawerContent>
               </Drawer>
@@ -724,7 +804,7 @@ export function App() {
                 <Switch
                   size="sm"
                   checked={rainEnabled}
-                  onCheckedChange={changeRainEnabled}
+                  onCheckedChange={handleRainChange}
                   aria-label="Toggle rain ripples"
                 />
               </div>
@@ -734,7 +814,7 @@ export function App() {
                 <Switch
                   size="sm"
                   checked={soundEnabled}
-                  onCheckedChange={setAmbientSoundEnabled}
+                  onCheckedChange={handleSoundChange}
                   aria-label="Toggle pond ambience"
                 />
               </div>

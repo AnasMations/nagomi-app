@@ -206,6 +206,22 @@ input[type="color"] {
   touch-action: none;
 }
 
+.pond-preview-label {
+  position: absolute;
+  top: 0.7rem;
+  left: 50%;
+  padding: 0.32rem 0.65rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(35 35 37 / 88%);
+  color: #eeeeef;
+  font-size: 0.67rem;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .pond-ui {
   position: absolute;
   inset: 0;
@@ -508,11 +524,72 @@ input[type="color"] {
 
 .settings-drawer__footer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--panel-gap);
   padding: 0.5rem var(--panel-gutter) max(0.55rem, env(safe-area-inset-bottom));
   border-top: 1px solid #1f1f1f;
   background: #292929;
+}
+
+.settings-reset-confirm {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.35rem;
+  color: #eadfdc;
+  font-size: 0.64rem;
+}
+
+.settings-quick__heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.settings-section-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  width: fit-content;
+  padding: 0.1rem 0.18rem;
+  border: 0;
+  background: transparent;
+  color: #bdbdc2;
+  font: inherit;
+  font-size: 0.59rem;
+  cursor: pointer;
+}
+
+.settings-section-reset:hover,
+.settings-section-reset:focus-visible {
+  color: #f4f4f5;
+  text-decoration: underline;
+}
+
+.settings-section-reset svg {
+  width: 0.65rem;
+  height: 0.65rem;
+}
+
+.family-preview-toggle {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #55565c;
+  border-radius: 0.25rem;
+  background: #35363a;
+  color: #eeeeef;
+  font: inherit;
+  font-size: 0.63rem;
+  font-weight: 620;
+  text-align: left;
+  cursor: pointer;
+}
+
+.family-preview-toggle[aria-pressed="true"] {
+  border-color: #73747b;
+  background: #4a4b50;
 }
 
 .settings-drawer__footer [data-slot="button"] {
@@ -521,33 +598,158 @@ input[type="color"] {
   font-size: 0.65rem;
 }
 
-.settings-drawer--nested {
-  --drawer-content-width: min(94vw, 29rem);
+.settings-quick {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
 }
 
-.config-section-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  padding: var(--panel-gap) var(--panel-gutter);
-  border-bottom: 1px solid #1f1f1f;
+.settings-quick__section {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid #454545;
+  border-radius: 0.38rem;
+  background: linear-gradient(145deg, #393939, #343434 68%, #303030);
+}
+
+.settings-quick__heading h3 {
+  margin: 0;
+  color: #f0f0f0;
+  font-size: 0.78rem;
+  font-weight: 680;
+}
+
+.settings-quick__heading p {
+  margin: 0.18rem 0 0;
+  color: #b2b2b2;
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.quick-setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 42%);
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.25rem;
+}
+
+.quick-setting__copy {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.quick-setting__copy > label,
+.quick-setting__label {
+  color: #e8e8e8;
+  font-size: 0.69rem;
+  font-weight: 620;
+}
+
+.quick-setting__copy small {
+  color: #aeaeae;
+  font-size: 0.59rem;
+  line-height: 1.35;
+}
+
+.quick-setting__select {
+  width: 100%;
+  min-width: 0;
+  height: 1.9rem;
+  padding: 0 0.4rem;
+  border: 1px solid #242424;
+  border-radius: 0.25rem;
   background: #292929;
+  color: #eeeeee;
+  font: inherit;
+  font-size: 0.66rem;
 }
 
-.config-section-tabs [data-slot="button"] {
-  height: 1.65rem;
-  padding-inline: 0.55rem;
-  font-size: 0.61rem;
+.quick-colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
 }
 
-.nested-settings-scroll {
-  min-height: 0;
-  flex: 1;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--panel-gap) var(--panel-gutter) var(--panel-gutter);
-  scrollbar-color: #5b5b5b transparent;
-  scrollbar-width: thin;
+.quick-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #484848;
+  border-radius: 0.25rem;
+  background: rgb(18 18 18 / 24%);
+}
+
+.quick-color label {
+  color: #dddddd;
+  font-size: 0.62rem;
+}
+
+.quick-color input {
+  width: 1.8rem;
+  height: 1.6rem;
+  flex: none;
+  padding: 0;
+  border: 1px solid #242424;
+  border-radius: 0.2rem;
+  background: transparent;
+}
+
+.quick-setting--switch [data-slot="switch"] {
+  justify-self: end;
+}
+
+.config-advanced {
+  overflow: hidden;
+  border: 1px solid #242424;
+  border-radius: 0.32rem;
+  background: #343434;
+}
+
+.config-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.config-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.config-advanced > summary > svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: #b7b7b7;
+  transition: transform 140ms ease;
+}
+
+.config-advanced[open] > summary > svg {
+  transform: rotate(90deg);
+}
+
+.config-advanced > summary > span {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.config-advanced strong {
+  color: #eeeeee;
+  font-size: 0.69rem;
+}
+
+.config-advanced small {
+  color: #aaaaaa;
+  font-size: 0.59rem;
+}
+
+.config-advanced > .config-sections {
+  padding: 0 0.4rem 0.45rem;
 }
 
 .config-sections {
@@ -569,6 +771,45 @@ input[type="color"] {
   font: inherit;
   text-align: left;
   transition: background-color 120ms ease;
+}
+
+.config-advanced-group > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.config-advanced-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.config-advanced-group[open] > summary > svg {
+  transform: rotate(90deg);
+}
+
+.config-advanced-group__body {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.45rem 0.25rem 0.55rem;
+}
+
+.config-advanced-section {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  border-left: 2px solid #666666;
+}
+
+.config-advanced-section__heading h4 {
+  margin: 0;
+  color: #e7e7e7;
+  font-size: 0.68rem;
+}
+
+.config-advanced-section__heading p {
+  margin: 0.12rem 0 0;
+  color: #aaaaaa;
+  font-size: 0.58rem;
+  line-height: 1.35;
 }
 
 .config-section:hover {
@@ -876,15 +1117,11 @@ input[type="color"] {
 
   .settings-drawer {
     --drawer-content-width: auto;
-    --drawer-content-height: min(78dvh, 42rem);
+    --drawer-content-height: min(56dvh, 34rem);
     --drawer-content-max-height: calc(100dvh - 0.5rem);
     --drawer-inset: 0.25rem;
     border-radius: 0.5rem 0.5rem 0.16rem 0.16rem;
     box-shadow: 0 -12px 36px rgb(0 0 0 / 42%);
-  }
-
-  .settings-drawer--nested {
-    --drawer-content-height: min(86dvh, 46rem);
   }
 
   .settings-drawer[data-swipe-axis="y"] > [data-slot="drawer-swipe-handle"] {
@@ -900,6 +1137,41 @@ input[type="color"] {
 
   .config-property-row {
     grid-template-columns: minmax(6.2rem, 38%) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .pond-shell {
+    width: 100vw;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .display {
+    flex: 1 1 auto;
+    min-height: 0;
+    aspect-ratio: auto;
+  }
+
+  .pond-ui {
+    flex: none;
+    margin-bottom: 0.35rem;
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  .control-dock {
+    flex: none;
+    margin-top: 0.35rem;
+    margin-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .stage--ambient .pond-shell {
+    width: 100vw;
+    height: 100dvh;
+  }
+
+  .stage--ambient .display {
+    height: 100%;
   }
 }
 

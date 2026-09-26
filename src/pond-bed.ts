@@ -106,6 +106,13 @@ export class PondBedPass {
     this.targetAppearance = pondBedAppearanceFromConfig();
   }
 
+  public resize(width: number, height: number): void {
+    this.mesh.geometry.dispose();
+    this.mesh.geometry = new THREE.PlaneGeometry(width, height);
+    this.mesh.position.set(width * 0.5, height * 0.5, -1);
+    this.material.uniforms.uResolution.value.set(width, height);
+  }
+
   public update(time: number): void {
     if (this.previousTime >= 0) {
       const deltaTime = Math.min(0.1, Math.max(0, time - this.previousTime));
