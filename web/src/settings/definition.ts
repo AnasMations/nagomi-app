@@ -80,26 +80,26 @@ const koiPatchList = list(koiPatch, []);
 const koi = group(
   {
     initialCount: num({
-      default: 14,
+      default: 10,
       min: 1,
       max: 48,
       step: 1,
       int: true,
-      label: "Koi count",
+      label: "Betta count",
       effect: "koi:count",
     }),
     regularLength: range({
-      default: [27, 40],
+      default: [28, 38],
       min: 5,
       max: 80,
       step: 0.5,
       effect: "koi:body",
       keepsFamilyPreview: true,
     }),
-    tinyEvery: num({ default: 2, min: 2, max: 12, step: 1, int: true, effect: "koi:body" }),
-    tinyLength: range({ default: [16, 22], min: 5, max: 60, step: 0.5, effect: "koi:body" }),
+    tinyEvery: num({ default: 3, min: 2, max: 12, step: 1, int: true, effect: "koi:body" }),
+    tinyLength: range({ default: [19, 24], min: 5, max: 60, step: 0.5, effect: "koi:body" }),
     regularWidthRatio: range({
-      default: [0.17, 0.2],
+      default: [0.19, 0.22],
       min: 0.05,
       max: 0.6,
       step: 0.005,
@@ -166,52 +166,58 @@ const koi = group(
       initialExtraSpeedMultiplier: num({ default: 0.34, min: 0, max: 5, step: 0.01 }),
     }),
   },
-  { label: "Koi" },
+  { label: "Betta" },
 );
 
 const koiPalettes = list(
   koiPalette,
   [
-    { name: "Kohaku", base: 0xf1eadb, accent: 0xdc4b2f, marking: 0x27251f, fin: 0xe6ddca },
-    { name: "Sanke", base: 0xf2ebdc, accent: 0xdf5032, marking: 0x20211f, fin: 0xe7dece },
-    { name: "Showa", base: 0xeee6d5, accent: 0xd9482e, marking: 0x242622, fin: 0xc9bfaa },
-    { name: "Ogon", base: 0xe7aa31, accent: 0xcf7626, marking: 0x78431f, fin: 0xd9922a },
-    { name: "Tancho", base: 0xf2ebdc, accent: 0xda4430, marking: 0x292723, fin: 0xe7dece },
-    { name: "Shiro", base: 0xeae5da, accent: 0x252825, marking: 0x4f5c5a, fin: 0xd7d2c7 },
+    // Betta splendens varieties. base = body, fin = veil, accent = veil edge
+    // and ventral streamers, marking = iridescent scale sheen / marbling.
+    { name: "Royal Blue", base: 0x3f5fd6, accent: 0xc4302b, marking: 0x8fb4ff, fin: 0x3446c9 },
+    { name: "Crimson Veiltail", base: 0xb3202a, accent: 0x5e0b18, marking: 0xe8635a, fin: 0xc42630 },
+    { name: "Turquoise", base: 0x239fa3, accent: 0x1f3f95, marking: 0xa6f2e8, fin: 0x2c8cbb },
+    { name: "Koi Marble", base: 0xefe7da, accent: 0xd9472a, marking: 0x26241f, fin: 0xebdfcc },
+    { name: "Black Orchid", base: 0x2b2147, accent: 0x9a5fe0, marking: 0x7c68c2, fin: 0x3a2870 },
+    { name: "Mustard Gas", base: 0x2f4fb0, accent: 0xf6cd57, marking: 0x86a6f5, fin: 0xdb9a28 },
   ],
-  { label: "Koi palettes", effect: "koi:appearance", keepsFamilyPreview: true },
+  { label: "Betta palettes", effect: "koi:appearance", keepsFamilyPreview: true },
 );
 
-// The order is Kohaku, Sanke, Showa, Ogon, Tancho, and Shiro.
+// Per-variety sheen / marbling patches, in the same order as the palettes.
+// Positions are along the spine (0 = nose); the body ends around 0.55.
 const koiPatterns = list(
   koiPatchList,
   [
     [
-      { position: 0.17, length: 0.09, width: 0.74, offset: 0.04, color: "accent" },
-      { position: 0.48, length: 0.115, width: 0.69, offset: -0.12, color: "accent" },
-      { position: 0.76, length: 0.085, width: 0.62, offset: 0.16, color: "accent" },
+      { position: 0.22, length: 0.06, width: 0.3, offset: 0.2, color: "marking" },
+      { position: 0.36, length: 0.05, width: 0.26, offset: -0.18, color: "marking" },
+      { position: 0.08, length: 0.035, width: 0.5, offset: 0, color: "accent" },
     ],
     [
-      { position: 0.19, length: 0.095, width: 0.7, offset: 0.04, color: "accent" },
-      { position: 0.58, length: 0.105, width: 0.66, offset: -0.14, color: "accent" },
-      { position: 0.38, length: 0.045, width: 0.3, offset: 0.38, color: "marking" },
-      { position: 0.79, length: 0.04, width: 0.28, offset: -0.36, color: "marking" },
+      { position: 0.24, length: 0.08, width: 0.42, offset: 0.08, color: "marking" },
+      { position: 0.4, length: 0.05, width: 0.34, offset: -0.1, color: "marking" },
     ],
     [
-      { position: 0.15, length: 0.082, width: 0.63, offset: -0.05, color: "accent" },
-      { position: 0.53, length: 0.092, width: 0.58, offset: 0.17, color: "accent" },
-      { position: 0.32, length: 0.09, width: 0.72, offset: 0.1, color: "marking" },
-      { position: 0.73, length: 0.105, width: 0.67, offset: -0.14, color: "marking" },
+      { position: 0.18, length: 0.09, width: 0.5, offset: -0.06, color: "marking" },
+      { position: 0.38, length: 0.07, width: 0.42, offset: 0.14, color: "marking" },
     ],
-    [],
-    [{ position: 0.16, length: 0.07, width: 0.52, offset: 0, color: "accent" }],
     [
-      { position: 0.22, length: 0.092, width: 0.68, offset: 0.08, color: "accent" },
-      { position: 0.51, length: 0.09, width: 0.6, offset: -0.18, color: "accent" },
-      { position: 0.79, length: 0.074, width: 0.54, offset: 0.22, color: "accent" },
+      { position: 0.14, length: 0.06, width: 0.62, offset: 0.06, color: "accent" },
+      { position: 0.33, length: 0.07, width: 0.58, offset: -0.14, color: "accent" },
+      { position: 0.25, length: 0.04, width: 0.3, offset: 0.36, color: "marking" },
+      { position: 0.46, length: 0.035, width: 0.28, offset: 0.1, color: "marking" },
+    ],
+    [
+      { position: 0.22, length: 0.08, width: 0.4, offset: 0.12, color: "marking" },
+      { position: 0.4, length: 0.05, width: 0.3, offset: -0.12, color: "accent" },
+    ],
+    [
+      { position: 0.2, length: 0.09, width: 0.48, offset: 0.06, color: "marking" },
+      { position: 0.44, length: 0.06, width: 0.46, offset: 0, color: "accent" },
     ],
   ] as const,
-  { label: "Koi markings", effect: "koi:appearance", keepsFamilyPreview: true },
+  { label: "Betta markings", effect: "koi:appearance", keepsFamilyPreview: true },
 );
 
 // ---- tiny fish -----------------------------------------------------------

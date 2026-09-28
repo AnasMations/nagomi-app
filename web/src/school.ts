@@ -24,6 +24,9 @@ import {
 } from "./math";
 import { RippleSystem } from "./ripple-system";
 
+// Separation radius between fish, in pond pixels.
+const BETTA_PERSONAL_SPACE = 30;
+
 export class School {
   public readonly fish: Koi[] = Array.from({ length: MAX_FISH }, () => new Koi());
   public readonly ripples = new RippleSystem();
@@ -353,8 +356,12 @@ export class School {
         neighbours += 1;
         cohesion = add(cohesion, this.fish[other].position);
         alignment = add(alignment, normalize(this.fish[other].velocity));
-        if (distance < 14) {
-          separation = add(separation, mul(normalize(offset), (14 - distance) / 14));
+        // Bettas are solitary and territorial: they keep their veils apart.
+        if (distance < BETTA_PERSONAL_SPACE) {
+          separation = add(
+            separation,
+            mul(normalize(offset), (BETTA_PERSONAL_SPACE - distance) / BETTA_PERSONAL_SPACE),
+          );
         }
       }
     }
@@ -362,9 +369,11 @@ export class School {
     if (neighbours > 0) {
       cohesion = normalize(sub(mul(cohesion, 1 / neighbours), fish.position), forward);
       alignment = normalize(alignment, forward);
-      steering = add(steering, mul(cohesion, 0.25));
-      steering = add(steering, mul(alignment, 0.42));
-      steering = add(steering, mul(separation, 2.8));
+      // No schooling pull for bettas: only a faint alignment so passing fish
+      // don't cut straight across each other.
+      steering = add(steering, mul(cohesion, 0));
+      steering = add(steering, mul(alignment, 0.1));
+      steering = add(steering, mul(separation, 2.4));
     }
 
     const margin = 32;

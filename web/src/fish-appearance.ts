@@ -7,12 +7,12 @@ import {
 } from "./config";
 
 export enum KoiPattern {
-  Kohaku,
-  Sanke,
-  Showa,
-  Ogon,
-  Tancho,
-  Shiro,
+  RoyalBlue,
+  CrimsonVeiltail,
+  Turquoise,
+  KoiMarble,
+  BlackOrchid,
+  MustardGas,
 }
 
 export interface FishAppearance {

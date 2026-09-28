@@ -58,7 +58,7 @@ describe("schema defaults", () => {
     expect(value.koi.shadow.depthOffset).toEqual({ x: -3, y: -7 });
     expect(value.koi.depth.deepBrightness).toBe(0.59);
     expect(value["koi-palettes"][0]).toEqual({
-      name: "Kohaku", base: 0xf1eadb, accent: 0xdc4b2f, marking: 0x27251f, fin: 0xe6ddca,
+      name: "Royal Blue", base: 0x3f5fd6, accent: 0xc4302b, marking: 0x8fb4ff, fin: 0x3446c9,
     });
     expect(value["koi-patterns"][3]).toEqual([]);
     expect(value["tiny-fish"].visibleSchoolCount).toBe(3);
